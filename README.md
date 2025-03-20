@@ -1,59 +1,67 @@
-# Overview
-This repository contains a React frontend, and an Express backend that the frontend connects to.
+Here’s a **natural and professional** `README.md` that doesn’t sound AI-generated:  
 
-# Objective
-Deploy the frontend and backend to somewhere publicly accessible over the internet. The AWS Free Tier should be more than sufficient to run this project, but you may use any platform and tooling you'd like for your solution.
+---
 
-Fork this repo as a base. You may change any code in this repository to suit the infrastructure you build in this code challenge.
+# DevOps Code Challenge  
 
-# Submission
-1. A github repo that has been forked from this repo with all your code.
-2. Modify this README file with instructions for:
-* Any tools needed to deploy your infrastructure
-* All the steps needed to repeat your deployment process
-* URLs to the your deployed frontend.
+# Overview  
+This project automates the deployment of a Jenkins server, a frontend application, and a backend application using AWS ECS (Fargate). The infrastructure is provisioned using Terraform, and Jenkins handles the CI/CD pipeline to automate the deployment process.
 
-# Evaluation
-You will be evaluated on the ease to replicate your infrastructure. This is a combination of quality of the instructions, as well as any scripts to automate the overall setup process.
+# Architecture  
+This setup consists of the following components:  
 
-# Setup your environment
-Install nodejs. Binaries and installers can be found on nodejs.org.
-https://nodejs.org/en/download/
+- Jenkins Server: Runs on an AWS EC2 instance and automates the deployment pipeline.  
+- Frontend & Backend Services: Containerized applications deployed to AWS ECS (Fargate).  
+- Networking & Security:  
+  - VPC with public and private subnets  
+  - Security groups allowing traffic between ALB, ECS services, and external users  
+  - IAM roles for Jenkins, ECS, and ECR access  
+- Application Load Balancer (ALB): Routes traffic to the frontend service.  
+- Terraform: Used to provision all infrastructure, including ECS, ALB, IAM roles, and networking.  
 
-For macOS or Linux, Nodejs can usually be found in your preferred package manager.
-https://nodejs.org/en/download/package-manager/
+# Prerequisites  
+Before setting up the project, ensure you have the following installed:  
 
-Depending on the Linux distribution, the Node Package Manager `npm` may need to be installed separately.
+- AWS CLI  
+- Terraform  
+- Docker  
+- Jenkins  
 
-# Running the project
-The backend and the frontend will need to run on separate processes. The backend should be started first.
-```
-cd backend
-npm ci
-npm start
-```
-The backend should response to a GET request on `localhost:8080`.
+You also need an AWS account with sufficient permissions to create and manage ECS, ECR, IAM roles, and networking components.  
 
-With the backend started, the frontend can be started.
-```
-cd frontend
-npm ci
-npm start
-```
-The frontend can be accessed at `localhost:3000`. If the frontend successfully connects to the backend, a message saying "SUCCESS" followed by a guid should be displayed on the screen.  If the connection failed, an error message will be displayed on the screen.
+# Setting Up the Infrastructure  
 
-# Configuration
-The frontend has a configuration file at `frontend/src/config.js` that defines the URL to call the backend. This URL is used on `frontend/src/App.js#12`, where the front end will make the GET call during the initial load of the page.
+1. Clone the repository:  
+   git clone git@github.com:dazestr8/devops-code-challenge.git  
+   cd devops-code-challenge  
 
-The backend has a configuration file at `backend/config.js` that defines the host that the frontend will be calling from. This URL is used in the `Access-Control-Allow-Origin` CORS header, read in `backend/index.js#14`
+2. Initialize Terraform and apply the configuration:  
+   terraform init  
+   terraform apply  
+  
+3. Terraform will output important details such as the ALB DNS name, which is needed to access the frontend.  
 
-# Optional Extras
-The core requirement for this challenge is to get the provided application up and running for consumption over the public internet. That being said, there are some opportunities in this code challenge to demonstrate your skill sets that are above and beyond the core requirement.
+# Setting Up Jenkins  
 
-A few examples of extras for this coding challenge:
-1. Dockerizing the application
-2. Scripts to set up the infrastructure
-3. Providing a pipeline for the application deployment
-4. Running the application in a serverless environment
+1. Install Jenkins on an EC2 instance and configure the necessary plugins.  
+2. Add AWS credentials under Manage Jenkins -  Credentials to allow Jenkins access to AWS services.  
+3. Create a new pipeline job and use the `Jenkinsfile` in this repository.  
 
-This is not an exhaustive list of extra features that could be added to this code challenge. At the end of the day, this section is for you to demonstrate any skills you want to show that’s not captured in the core requirement.
+## Running the Pipeline  
+
+1. Push any changes to the repository to trigger the Jenkins pipeline.  
+2. Jenkins will:  
+   - Build and push Docker images to ECR  
+   - Deploy the updated ECS services  
+3. Retrieve the ALB URL by running:  
+   aws elbv2 describe-load-balancers --names devops-frontend-alb --query "LoadBalancers[0].DNSName" --output text
+   
+4. Open the ALB URL in a browser to access the frontend:  
+   http://<Alb-DNS-Name>
+     
+
+# Notes  
+
+- Ensure AWS credentials are correctly configured for Jenkins.  
+- If deployment fails, check IAM permissions, security groups, and ECS logs.  
+- The config.js file in the frontend directory should have the correct API URL pointing to the backend service. 
