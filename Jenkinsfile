@@ -2,73 +2,53 @@ pipeline {
     agent any
 
     environment {
+        AWS_CREDENTIALS = credentials('aws-credentials') // Ensure you created this in Jenkins Credentials
         AWS_REGION = 'us-east-1'
-        AWS_ACCOUNT_ID = '505787607537'
-        FRONTEND_REPO = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/devops-frontend"
-        BACKEND_REPO  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/devops-backend"
-        ECS_CLUSTER   = "devops-cluster"
+        ECR_REPOSITORY = '505787607537.dkr.ecr.us-east-1.amazonaws.com'
+        FRONTEND_IMAGE = 'devops-frontend'
+        BACKEND_IMAGE = 'devops-backend'
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
-                checkout scm
+                git branch: 'lightfeather-jenkins-pipeline', 
+                    credentialsId: 'git', 
+                    url: 'git@github.com:dazestr8/devops-code-challenge.git'
             }
         }
 
-        stage('Login to AWS ECR') {
+        stage('Build & Push Docker Images') {
             steps {
-                sh '''
-                  aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-                '''
-            }
-        }
-
-        stage('Build and Push Backend') {
-            steps {
-                dir('backend') {
-                    sh '''
-                      docker build -t $BACKEND_REPO:latest .
-                      docker push $BACKEND_REPO:latest
-                    '''
+                script {
+                    sh """
+                    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPOSITORY
+                    docker build -t $ECR_REPOSITORY/$FRONTEND_IMAGE:latest ./frontend
+                    docker push $ECR_REPOSITORY/$FRONTEND_IMAGE:latest
+                    docker build -t $ECR_REPOSITORY/$BACKEND_IMAGE:latest ./backend
+                    docker push $ECR_REPOSITORY/$BACKEND_IMAGE:latest
+                    """
                 }
             }
         }
 
-        stage('Build and Push Frontend') {
+        stage('Deploy to ECS') {
             steps {
-                dir('frontend') {
-                    sh '''
-                      docker build -t $FRONTEND_REPO:latest .
-                      docker push $FRONTEND_REPO:latest
-                    '''
+                script {
+                    sh "aws ecs update-service --cluster devops-cluster --service devops-frontend-service --force-new-deployment"
+                    sh "aws ecs update-service --cluster devops-cluster --service devops-backend-service --force-new-deployment"
                 }
-            }
-        }
-
-        stage('Deploy Backend to ECS') {
-            steps {
-                sh '''
-                  aws ecs update-service \
-                    --cluster $ECS_CLUSTER \
-                    --service devops-backend-service \
-                    --force-new-deployment \
-                    --region $AWS_REGION
-                '''
-            }
-        }
-
-        stage('Deploy Frontend to ECS') {
-            steps {
-                sh '''
-                  aws ecs update-service \
-                    --cluster $ECS_CLUSTER \
-                    --service devops-frontend-service \
-                    --force-new-deployment \
-                    --region $AWS_REGION
-                '''
             }
         }
     }
+
+    post {
+        success {
+            echo "Deployment successful!"
+        }
+        failure {
+            echo "Deployment failed!"
+        }
+    }
 }
+
